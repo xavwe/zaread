@@ -1,9 +1,2 @@
-# ===========================
-# Local
-# ===========================
-AGENTS.md
-CLAUDE.md
-PLAN.md
-.claude/
-.worktrees/
-.cook/
+# nix
+result
