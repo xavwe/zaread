@@ -253,7 +253,7 @@ case "$file_converter" in
 		;;
 	"$MD_CMD")
 		# shellcheck disable=SC2086
-		run_convert "$MD_CMD" "$MD_CMD" $MD_ARG "$directory/$file" -o "$ZA_CACHE_DIR/$pdffile.part"
+		run_convert "$MD_CMD" "$MD_CMD" $MD_ARG -i "$directory/$file" -o "$ZA_CACHE_DIR/$pdffile.part"
 		;;
 	"$TYPST_CMD")
 		# shellcheck disable=SC2086
