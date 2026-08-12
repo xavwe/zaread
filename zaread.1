@@ -1,0 +1,139 @@
+.TH ZAREAD 1  2026-08-12 "Version 2.0.0"
+.SH NAME
+zaread - lightweight, read-only document reader
+.SH SYNOPSIS
+.B zaread
+.RB [ -v ]
+.RB [ -f ]
+.RB [ -c ]
+.RB [ -V ]
+.RB [ -h ]
+.I file
+.SH DESCRIPTION
+.B zaread
+opens PDF, EPUB, and DJVU files directly with zathura. Other supported formats are converted to PDF, cached in
+.I $XDG_CACHE_HOME/zaread/
+(alternatively
+.IR $HOME/.cache/zared/ ),
+and opened from the cached PDF. If the source file changes,
+.B zaread
+detects the change and automatically re-converts it.
+
+.SH OPTIONS
+.TP
+.BR -v
+Enable verbose output.
+.br
+Overwrites
+.B ZA_VERBOSE
+and sets it to "1".
+.TP
+.BR -f
+Force re-conversion, ignoring any cached result.
+.br
+Overwrites
+.B ZA_FORCE
+and sets it to "1".
+.TP
+.BR -c
+Clear the conversion cache.
+.TP
+.BR -V
+Print the version and exit.
+.TP
+.BR -h
+Show usage information and exit.
+
+.SH ENVIRONMENT
+
+.SS Reader
+.TP
+.B ZA_READER_CMD
+Command used to open the resulting document.
+.br
+Formats:
+.B PDF, EPUB, DJVU
+.br
+Default:
+.B zathura
+.TP
+.B ZA_READER_ARG
+Additional arguments passed to
+.BR ZA_READER_CMD .
+
+.SS Converters
+.TP
+.B ZA_OFFICE_CMD
+Formats:
+.B ODT, ODS, ODP, CSV, RTF, DOCX, XLSX, PPTX, DOCM, XLSM, PPTM, DOC, XLS, PPT, XLSB, PPSX, DOTX
+.br 
+Default:
+.B soffice
+.TP
+.B ZA_OFFICE_ARG
+Additional arguments passed to
+.BR ZA_OFFICE_CMD .
+.TP
+.B ZA_MOBI_CMD
+Formats:
+.B MOBI
+.br
+Default:
+.B ebook-convert
+.TP
+.B ZA_MOBI_ARG
+Additional arguments passed to
+.BR ZA_MOBI_CMD .
+.TP
+.B ZA_MD_CMD
+Formats:
+.B MD
+.br
+Default:
+.B md2pdf
+.TP
+.B ZA_MD_ARG
+Additional arguments passed to
+.BR ZA_MD_CMD .
+.TP
+.B ZA_TYPST_CMD
+Formats:
+.B TYP
+.br
+Default:
+.B typst
+.TP
+.B ZA_TYPST_ARG
+Additional arguments passed to
+.BR ZA_TYPST_CMD .
+.br
+Default:
+.B compile
+
+.SS Behavior
+.TP
+.B ZA_VERBOSE
+Enable verbose output.
+.br
+Default:
+.B 0
+.TP
+.B ZA_FORCE
+Force re-conversion instead of using cached results.
+.br
+Default:
+.B 0
+
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Usage error, missing input file, or missing dependency.
+.TP
+.B 2
+Unsupported file format.
+.TP
+.B 3
+Document conversion failed.
