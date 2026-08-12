@@ -10,28 +10,30 @@ VERSION="1.5.0"
 
 # zaread cache path
 ZA_CACHE_DIR="${XDG_CACHE_HOME:-"$HOME"/.cache}/zaread"
-# zaread config path
-ZA_CONFIG="${XDG_CONFIG_HOME:-"$HOME"/.config}/zaread/zareadrc"
 
 # Default reader
-READER="zathura"
-READER_ARG=""
+: "${ZA_READER_CMD:=zathura}"
+: "${ZA_READER_ARG:=}"
 
 # Default converters
-MOBI_CMD="ebook-convert"
-OFFICE_CMD="soffice"
-MD_CMD="md2pdf"
-TYPST_CMD="typst"
-TYPST_ARG="compile"
-MD_ARG=""
-MOBI_ARG=""
-OFFICE_ARG=""
+: "${ZA_MOBI_CMD:=ebook-convert}"
+: "${ZA_OFFICE_CMD:=soffice}"
+: "${ZA_MD_CMD:=md2pdf}"
+: "${ZA_TYPST_CMD:=typst}"
+
+: "${ZA_TYPST_ARG:=compile}"
+: "${ZA_MD_ARG:=}"
+: "${ZA_MOBI_ARG:=}"
+: "${ZA_OFFICE_ARG:=}"
 
 # Verbose output (override with -v flag or set in config)
-VERBOSE=0
+: "${ZA_VERBOSE:=0}"
+
+
+: "${ZA_FORCE:=0}"
 
 log() {
-	if [ "$VERBOSE" -eq 1 ]; then
+	if [ "$ZA_VERBOSE" -eq 1 ]; then
 		echo "$@"
 	fi
 }
@@ -56,16 +58,11 @@ run_convert() {
 	mv "$ZA_CACHE_DIR/$pdffile.part" "$ZA_CACHE_DIR/$pdffile"
 }
 
-# Override any of the above via config file
-# shellcheck disable=SC1090
-[ -f "$ZA_CONFIG" ] && . "$ZA_CONFIG"
-
-FORCE=0
 
 while getopts ":vhcfV" opt; do
 	case "$opt" in
-	v) VERBOSE=1 ;;
-	f) FORCE=1 ;;
+	v) ZA_VERBOSE=1 ;;
+	f) ZA_FORCE=1 ;;
 	c)
 		if [ -d "$ZA_CACHE_DIR" ]; then
 			rm -rf "${ZA_CACHE_DIR:?}"/*
@@ -103,8 +100,8 @@ if [ ! -f "$path" ]; then
 	exit 1
 fi
 
-if ! command -v "$READER" >/dev/null; then
-	err "$READER is not in PATH"
+if ! command -v "$ZA_READER_CMD" >/dev/null; then
+	err "$ZA_READER_CMD is not in PATH"
 	exit 1
 fi
 
@@ -116,7 +113,7 @@ fi
 # Create cache dir if needed (deferred so -V/-h/-c don't create it as a side effect)
 [ -d "$ZA_CACHE_DIR" ] || mkdir -p "$ZA_CACHE_DIR" || { err "cannot create cache directory: $ZA_CACHE_DIR"; exit 1; }
 
-log "Reader: $READER"
+log "Reader: $ZA_READER_CMD"
 
 ## Resolve file path
 
@@ -141,10 +138,10 @@ log "Cache file: $pdffile"
 file_converter=""
 
 # Check for cached conversion first (skip with -f)
-if [ "$FORCE" -eq 0 ] && [ -f "$ZA_CACHE_DIR/$pdffile" ]; then
+if [ "$ZA_FORCE" -eq 0 ] && [ -f "$ZA_CACHE_DIR/$pdffile" ]; then
 	file_converter="none_converted"
 else
-	if [ "$FORCE" -eq 1 ] && [ -f "$ZA_CACHE_DIR/$pdffile" ]; then
+	if [ "$ZA_FORCE" -eq 1 ] && [ -f "$ZA_CACHE_DIR/$pdffile" ]; then
 		log "Force re-conversion (ignoring cache)"
 	fi
 	case "$file_mt" in
@@ -162,15 +159,15 @@ else
 		"application/vnd.oasis.opendocument.presentation" | \
 		"text/rtf" | \
 		"text/csv")
-		file_converter="$OFFICE_CMD"
+		file_converter="$ZA_OFFICE_CMD"
 		;;
 	"application/x-mobipocket-ebook")
-		file_converter="$MOBI_CMD"
+    file_converter="$ZA_MOBI_CMD"
 		;;
 	"application/octet-stream")
 		case "$file" in
 		*.mobi)
-			file_converter="$MOBI_CMD"
+      file_converter="$ZA_MOBI_CMD"
 			;;
 		esac
 		;;
@@ -178,7 +175,7 @@ else
 	"application/zip")
 		case "$file" in
 		*.xlsm | *.xlsb | *.docm | *.pptm | *.ppsx | *.dotx)
-			file_converter="$OFFICE_CMD"
+      file_converter="$ZA_OFFICE_CMD"
 			;;
 		esac
 		;;
@@ -190,10 +187,10 @@ else
 		"text/markdown")
 		case "$file" in
 		*.md)
-			file_converter="$MD_CMD"
+			file_converter="$ZA_MD_CMD"
 			;;
 		*.typ)
-			file_converter="$TYPST_CMD"
+			file_converter="$ZA_TYPST_CMD"
 			;;
 		esac
 		;;
@@ -208,12 +205,12 @@ case "$file_converter" in
 "none_original")
 	log "Opening directly"
 	# shellcheck disable=SC2086
-	"$READER" $READER_ARG "$directory/$file"
+	"$ZA_READER_CMD" $ZA_READER_ARG "$directory/$file"
 	;;
 "none_converted")
 	log "Opening from cache"
 	# shellcheck disable=SC2086
-	"$READER" $READER_ARG "$ZA_CACHE_DIR/$pdffile"
+	"$ZA_READER_CMD" $ZA_READER_ARG "$ZA_CACHE_DIR/$pdffile"
 	;;
 *)
 	if ! command -v "$file_converter" >/dev/null; then
@@ -223,7 +220,7 @@ case "$file_converter" in
 	log "Converting $file with $file_converter"
 	# _ARG vars intentionally unquoted to allow multi-argument values
 	case "$file_converter" in
-	"$OFFICE_CMD")
+	"$ZA_OFFICE_CMD")
 		case "$file" in
 		.*.*)
 			tmpfile="${file%.*}.pdf"
@@ -236,32 +233,32 @@ case "$file_converter" in
 			;;
 		esac
 		# shellcheck disable=SC2086
-		if ! "$OFFICE_CMD" $OFFICE_ARG \
+		if ! "$ZA_OFFICE_CMD" $ZA_OFFICE_ARG \
 			"-env:UserInstallation=file:///tmp/zaread-soffice-$$" \
 			--convert-to pdf "$directory/$file" --outdir "$ZA_CACHE_DIR"; then
 			rm -f "$ZA_CACHE_DIR/$tmpfile"
 			rm -rf "/tmp/zaread-soffice-$$"
-			err "conversion failed: $OFFICE_CMD $file"
+			err "conversion failed: $ZA_OFFICE_CMD $file"
 			exit 3
 		fi
 		rm -rf "/tmp/zaread-soffice-$$"
 		mv "$ZA_CACHE_DIR/$tmpfile" "$ZA_CACHE_DIR/$pdffile"
 		;;
-	"$MOBI_CMD")
+	"$ZA_MOBI_CMD")
 		# shellcheck disable=SC2086
-		run_convert "$MOBI_CMD" "$MOBI_CMD" $MOBI_ARG "$directory/$file" "$ZA_CACHE_DIR/$pdffile.part"
+		run_convert "$ZA_MOBI_CMD" "$ZA_MOBI_CMD" $ZA_MOBI_ARG "$directory/$file" "$ZA_CACHE_DIR/$pdffile.part"
 		;;
-	"$MD_CMD")
+	"$ZA_MD_CMD")
 		# shellcheck disable=SC2086
-		run_convert "$MD_CMD" "$MD_CMD" $MD_ARG -i "$directory/$file" -o "$ZA_CACHE_DIR/$pdffile.part"
+		run_convert "$ZA_MD_CMD" "$ZA_MD_CMD" $ZA_MD_ARG -i "$directory/$file" -o "$ZA_CACHE_DIR/$pdffile.part"
 		;;
-	"$TYPST_CMD")
+	"$ZA_TYPST_CMD")
 		# shellcheck disable=SC2086
-		run_convert "$TYPST_CMD" "$TYPST_CMD" $TYPST_ARG "$directory/$file" "$ZA_CACHE_DIR/$pdffile.part"
+		run_convert "$ZA_TYPST_CMD" "$ZA_TYPST_CMD" $ZA_TYPST_ARG "$directory/$file" "$ZA_CACHE_DIR/$pdffile.part"
 		;;
 	esac
 	log "Opening converted file"
 	# shellcheck disable=SC2086
-	"$READER" $READER_ARG "$ZA_CACHE_DIR/$pdffile"
+	"$ZA_READER_CMD" $ZA_READER_ARG "$ZA_CACHE_DIR/$pdffile"
 	;;
 esac

@@ -30,28 +30,28 @@ zaread also uses `file` (for MIME detection) and `cksum` (for cache keys), both 
 
 ### Can I use a different PDF viewer?
 
-Yes. Create a config file at `~/.config/zaread/zareadrc` (or `$XDG_CONFIG_HOME/zaread/zareadrc`) and override any of the default variables:
-
+Yes. Zaread can be customized using shell aliases/environment variables.
 ```sh
+
 # Reader
-READER="zathura"
-READER_ARG=""
+ZA_READER_CMD=zathura
+ZA_READER_ARG=""
 
 # Converters
-OFFICE_CMD="soffice"       # LibreOffice
-OFFICE_ARG=""
-MOBI_CMD="ebook-convert"   # calibre
-MOBI_ARG=""
-MD_CMD="md2pdf"
-MD_ARG=""
-TYPST_CMD="typst"
-TYPST_ARG="compile"
+ZA_OFFICE_CMD=soffice       # LibreOffice
+ZA_OFFICE_ARG=""
+ZA_MOBI_CMD=ebook-convert   # calibre
+ZA_MOBI_ARG=""
+ZA_MD_CMD=md2pdf
+ZA_MD_ARG=""
+ZA_TYPST_CMD=typst
+ZA_TYPST_ARG=compile
 
 # Behavior
-VERBOSE=0
+ZA_VERBOSE=0
+ZA_FORCE=0
 ```
 
-The config is sourced as shell, so anything you set there takes effect at runtime.
 
 ### Why zaread?
 
