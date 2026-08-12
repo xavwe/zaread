@@ -30,7 +30,7 @@ zaread also uses `file` (for MIME detection) and `cksum` (for cache keys), both 
 
 ### Can I use a different PDF viewer?
 
-Yes. Zaread can be customized using shell aliases/environment variables.
+Yes. Zaread can be customized using environment variables (e.g. `alias zaread='ZA_READER_ARG="--fork" zaread'`):
 ```sh
 
 # Reader
