@@ -1,7 +1,7 @@
 #!/bin/sh
 ## zaread - a simple script created by paoloap.
 
-VERSION="2.0.0"
+VERSION="2.0.1"
 
 # Exit codes:
 #   1 - usage error, missing file, or missing dependency
@@ -21,7 +21,7 @@ ZA_CACHE_DIR="${XDG_CACHE_HOME:-"$HOME"/.cache}/zaread"
 : "${ZA_MD_CMD:=md2pdf}"
 : "${ZA_TYPST_CMD:=typst}"
 
-: "${ZA_TYPST_ARG:=compile}"
+: "${ZA_TYPST_ARG:=compile --format pdf}"
 : "${ZA_MD_ARG:=}"
 : "${ZA_MOBI_ARG:=}"
 : "${ZA_OFFICE_ARG:=}"
