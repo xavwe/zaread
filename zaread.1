@@ -1,27 +1,18 @@
-.TH ZAREAD 1  2026-08-12 "Version 2.0.0"
+.TH ZAREAD 1  2026-08-12 "Version 2.0.3"
 .SH NAME
-zaread - lightweight, read-only document reader
+zaread - lightweight document converter that outputs PDF to stdout
 .SH SYNOPSIS
 .B zaread
+.BR -t \ <type>
 .RB [ -v ]
 .RB [ -f ]
-.RB [ -F ]
 .RB [ -c ]
 .RB [ -V ]
 .RB [ -h ]
-.RB [ -t <ft> ]
-.I < /dev/stdin>
 .SH DESCRIPTION
 .B zaread
-opens PDF, EPUB, and DJVU files directly with zathura. Other supported formats are converted to PDF, cached in
-.I $XDG_CACHE_HOME/zaread/
-(alternatively
-.IR $HOME/.cache/zared/ ),
-and opened from the cached PDF. If the source file changes,
-.B zaread
-detects the change and automatically re-converts it.
-Input is read from stdin and the file type must be specified with
-.B -t .
+reads a document from stdin, converts it to PDF, and outputs the PDF to stdout.
+Cached results are used when avaiable.
 
 .SH OPTIONS
 .TP
@@ -39,9 +30,6 @@ Overwrites
 .B ZA_FORCE
 and sets it to "1".
 .TP
-.BR -F
-Pass --fork to the reader command (e.g., zathura).
-.TP
 .BR -c
 Clear the conversion cache.
 .TP
@@ -51,44 +39,26 @@ Print the version and exit.
 .BR -h
 Show usage information and exit.
 .TP
-.B -t
-Specify the file extension of the input from stdin. This is required when reading from stdin since the file type cannot be auto-detected.
+.BR -t \ <type>
+Specify the input type. This is the only required flag.
 .br
-Example:
-.B -t docx
-.br
-Supported extensions:
-.B pdf, epub, djvu, mobi, md, typ, typst, docx, xlsx, pptx, doc, xls, ppt, odt, ods, odp, rtf, csv
+Supported values:
+.B pdf, epub, mobi, md, typ, docx, xlsx, pptx, doc, xls, ppt, odt, ods, odp, rtf, csv
 .TP
 .SH ENVIRONMENT
-
-.SS Reader
-.TP
-.B ZA_READER_CMD
-Command used to open the resulting document.
-.br
-Formats:
-.B PDF, EPUB, DJVU
-.br
-Default:
-.B zathura
-.TP
-.B ZA_READER_ARG
-Additional arguments passed to
-.BR ZA_READER_CMD .
 
 .SS Converters
 .TP
 .B ZA_OFFICE_CMD
 Formats:
 .B ODT, ODS, ODP, CSV, RTF, DOCX, XLSX, PPTX, DOCM, XLSM, PPTM, DOC, XLS, PPT, XLSB, PPSX, DOTX
-.br 
+.br
 Default:
 .B soffice
 .TP
 .B ZA_OFFICE_ARG
 Additional arguments passed to
-.BR ZA_OFFICE_CMD .
+.RB ZA_OFFICE_CMD .
 .TP
 .B ZA_MOBI_CMD
 Formats:
@@ -99,7 +69,7 @@ Default:
 .TP
 .B ZA_MOBI_ARG
 Additional arguments passed to
-.BR ZA_MOBI_CMD .
+.RB ZA_MOBI_CMD .
 .TP
 .B ZA_MD_CMD
 Formats:
@@ -110,7 +80,7 @@ Default:
 .TP
 .B ZA_MD_ARG
 Additional arguments passed to
-.BR ZA_MD_CMD .
+.RB ZA_MD_CMD .
 .TP
 .B ZA_TYPST_CMD
 Formats:
@@ -121,7 +91,7 @@ Default:
 .TP
 .B ZA_TYPST_ARG
 Additional arguments passed to
-.BR ZA_TYPST_CMD .
+.RB ZA_TYPST_CMD .
 .br
 Default:
 .B compile
@@ -131,11 +101,17 @@ Default:
 .B ZA_VERBOSE
 Enable verbose output.
 .br
+Supported values:
+.B 1, 0
+.br
 Default:
 .B 0
 .TP
 .B ZA_FORCE
 Force re-conversion instead of using cached results.
+.br
+Supported values:
+.B 1, 0
 .br
 Default:
 .B 0

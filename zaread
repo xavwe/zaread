@@ -1,19 +1,7 @@
 #!/bin/sh
-## zaread - a simple script created by paoloap.
 
-VERSION="2.0.3"
-
-# Exit codes:
-#   1 - usage error, missing stdin, or missing dependency
-#   2 - unsupported file format
-#   3 - conversion failed
-
-# zaread cache path
+VERSION="3.0.0"
 ZA_CACHE_DIR="${XDG_CACHE_HOME:-"$HOME"/.cache}/zaread"
-
-# Default reader
-: "${ZA_READER_CMD:=zathura}"
-: "${ZA_READER_ARG:=}"
 
 # Default converters
 : "${ZA_MOBI_CMD:=ebook-convert}"
@@ -26,24 +14,19 @@ ZA_CACHE_DIR="${XDG_CACHE_HOME:-"$HOME"/.cache}/zaread"
 : "${ZA_MOBI_ARG:=}"
 : "${ZA_OFFICE_ARG:=}"
 
-# Verbose output (override with -v flag or set in config)
 : "${ZA_VERBOSE:=0}"
-
-
 : "${ZA_FORCE:=0}"
 
 log() {
-	if [ "$ZA_VERBOSE" -eq 1 ]; then
-		echo "$@"
-	fi
+	[ "$ZA_VERBOSE" -eq 1 ] && echo "$1" >&2
 }
 
 err() {
-	echo "zaread: $*" >&2
+	echo "zaread: $1" >&2
 }
 
 usage() {
-	echo "Usage: zaread [-v] [-f] [-F] [-c] [-V] [-h] [-t <ext>] < /dev/stdin"
+	echo "Usage: zaread -t <type> [-v] [-f] [-c] [-V] [-h]"
 }
 
 # Run a converter that writes to a .part temp file, handle errors, rename on success.
@@ -59,11 +42,10 @@ run_convert() {
 }
 
 
-while getopts ":vhcfVFt:" opt; do
+while getopts ":vhcVFt:" opt; do
 	case "$opt" in
 	v) ZA_VERBOSE=1 ;;
 	f) ZA_FORCE=1 ;;
-	F) ZA_READER_ARG="$ZA_READER_ARG --fork" ;;
 	c)
 		if [ -d "$ZA_CACHE_DIR" ]; then
 			rm -rf "${ZA_CACHE_DIR:?}"/*
@@ -102,15 +84,8 @@ if [ -z "$ZA_FT" ]; then
 	exit 1
 fi
 
-if ! command -v "$ZA_READER_CMD" >/dev/null; then
-	err "$ZA_READER_CMD is not in PATH"
-	exit 1
-fi
-
 # Create cache dir if needed (deferred so -V/-h/-c don't create it as a side effect)
 [ -d "$ZA_CACHE_DIR" ] || mkdir -p "$ZA_CACHE_DIR" || { err "cannot create cache directory: $ZA_CACHE_DIR"; exit 1; }
-
-log "Reader: $ZA_READER_CMD"
 
 # Read stdin to a temp file
 tmpfile="/tmp/zaread-$$.$ZA_FT"
@@ -125,27 +100,27 @@ log "File: $file"
 directory="$(dirname "$tmpfile")"
 log "Directory: $directory"
 
-# Cache key: CRC_BYTECOUNT_filename.pdf
+# Cache key: CRC_BYTECOUNT.pdf
 _ckout="$(cksum "$tmpfile")"
 _crc="${_ckout%% *}"; _rest="${_ckout#* }"
 _bytes="${_rest%% *}"
-pdffile="${_crc}_${_bytes}_${file}.pdf"
+pdffile="${_crc}_${_bytes}.pdf"
 log "Cache file: $pdffile"
 
 file_converter=""
 
 # Determine file_converter from the file extension passed via -t
 case "$ZA_FT" in
-	pdf|epub|djvu)
+	pdf)
 		file_converter="none_original"
 		;;
-	mobi)
+	mobi|epub)
 		file_converter="$ZA_MOBI_CMD"
 		;;
 	md)
 		file_converter="$ZA_MD_CMD"
 		;;
-	typ|typst)
+	typ)
 		file_converter="$ZA_TYPST_CMD"
 		;;
 	docx|xlsx|pptx|docm|pptm|xlsm|xlsb|doc|xls|ppt|odt|ods|odp|rtf|csv)
@@ -155,18 +130,21 @@ case "$ZA_FT" in
 		err "unsupported format: $ZA_FT"
 		exit 2
 		;;
-esac
+	esac
 
-case "$file_converter" in
+	# Use cache if available and not forced
+	if [ -f "$ZA_CACHE_DIR/$pdffile" ] && [ "$ZA_FORCE" -eq 0 ]; then
+		file_converter="none_converted"
+	fi
+
+	case "$file_converter" in
 "none_original")
-	log "Opening directly"
-	# shellcheck disable=SC2086
-	"$ZA_READER_CMD" $ZA_READER_ARG "$tmpfile"
+	log "Outputting original PDF"
+	cat "$tmpfile"
 	;;
 "none_converted")
-	log "Opening from cache"
-	# shellcheck disable=SC2086
-	"$ZA_READER_CMD" $ZA_READER_ARG "$ZA_CACHE_DIR/$pdffile"
+	log "Outputting from cache"
+	cat "$ZA_CACHE_DIR/$pdffile"
 	;;
 *)
 	if ! command -v "$file_converter" >/dev/null; then
@@ -203,8 +181,7 @@ case "$file_converter" in
 		run_convert "$ZA_TYPST_CMD" "$ZA_TYPST_CMD" $ZA_TYPST_ARG "$tmpfile" "$ZA_CACHE_DIR/$pdffile.part"
 		;;
 	esac
-	log "Opening converted file"
-	# shellcheck disable=SC2086
-	"$ZA_READER_CMD" $ZA_READER_ARG "$ZA_CACHE_DIR/$pdffile"
+	log "Outputting converted file"
+	cat "$ZA_CACHE_DIR/$pdffile"
 	;;
 esac

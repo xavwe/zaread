@@ -16,7 +16,7 @@
       inputs.nixpkgs.legacyPackages."x86_64-linux".stdenvNoCC.mkDerivation
         rec {
           pname = "zaread";
-          version = "2.0.3";
+          version = "3.0.0";
 
           src = ./.;
 
@@ -53,7 +53,6 @@
 
                 mimeTypes = [
                   "application/pdf"
-                  "image/vnd.djvu"
                   "application/epub+zip"
                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
