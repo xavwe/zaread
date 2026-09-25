@@ -1,10 +1,10 @@
 #!/bin/sh
 ## zaread - a simple script created by paoloap.
 
-VERSION="2.0.2"
+VERSION="2.0.3"
 
 # Exit codes:
-#   1 - usage error, missing file, or missing dependency
+#   1 - usage error, missing stdin, or missing dependency
 #   2 - unsupported file format
 #   3 - conversion failed
 
@@ -43,7 +43,7 @@ err() {
 }
 
 usage() {
-	echo "Usage: zaread [-v] [-f] [-c] [-V] [-h] <file>"
+	echo "Usage: zaread [-v] [-f] [-F] [-c] [-V] [-h] [-t <ext>] < /dev/stdin"
 }
 
 # Run a converter that writes to a .part temp file, handle errors, rename on success.
@@ -59,10 +59,11 @@ run_convert() {
 }
 
 
-while getopts ":vhcfV" opt; do
+while getopts ":vhcfVFt:" opt; do
 	case "$opt" in
 	v) ZA_VERBOSE=1 ;;
 	f) ZA_FORCE=1 ;;
+	F) ZA_READER_ARG="$ZA_READER_ARG --fork" ;;
 	c)
 		if [ -d "$ZA_CACHE_DIR" ]; then
 			rm -rf "${ZA_CACHE_DIR:?}"/*
@@ -77,26 +78,27 @@ while getopts ":vhcfV" opt; do
 		exit 0
 		;;
 	h) usage; exit 0 ;;
+	t) ZA_FT="$OPTARG" ;;
 	*) err "unknown option: -$OPTARG"; usage >&2; exit 1 ;;
 	esac
 done
 shift $((OPTIND - 1))
 
-if [ "$#" -eq 0 ]; then
-	err "no file specified"
+if [ "$#" -ne 0 ]; then
+	err "unexpected argument(s): $#"
 	usage >&2
 	exit 1
 fi
 
-if [ "$#" -ne 1 ]; then
-	err "expected one file, got $#"
+if [ -t 0 ]; then
+	err "no stdin provided"
+	usage >&2
 	exit 1
 fi
 
-path="$1"
-
-if [ ! -f "$path" ]; then
-	err "file not found: $path"
+if [ -z "$ZA_FT" ]; then
+	err "file type not specified (use -t <ext>)"
+	usage >&2
 	exit 1
 fi
 
@@ -105,31 +107,26 @@ if ! command -v "$ZA_READER_CMD" >/dev/null; then
 	exit 1
 fi
 
-if ! command -v file >/dev/null; then
-	err "file is not in PATH (needed for MIME detection)"
-	exit 1
-fi
-
 # Create cache dir if needed (deferred so -V/-h/-c don't create it as a side effect)
 [ -d "$ZA_CACHE_DIR" ] || mkdir -p "$ZA_CACHE_DIR" || { err "cannot create cache directory: $ZA_CACHE_DIR"; exit 1; }
 
 log "Reader: $ZA_READER_CMD"
 
-## Resolve file path
+# Read stdin to a temp file
+tmpfile="/tmp/zaread-$$.$ZA_FT"
+cat > "$tmpfile" || { err "failed to read stdin"; exit 1; }
 
-file="$(basename "$path")"
+# Clean up temp file on exit
+trap 'rm -f "$tmpfile"' EXIT
+
+file="$(basename "$tmpfile")"
 log "File: $file"
 
-directory="$(cd "$(dirname "$path")" && pwd)" || { err "cannot resolve path: $path"; exit 1; }
+directory="$(dirname "$tmpfile")"
 log "Directory: $directory"
 
-# Detect MIME type
-file_mt="$(file --mime-type "$directory/$file")"
-file_mt="${file_mt#*: }"
-log "MIME type: $file_mt"
-
 # Cache key: CRC_BYTECOUNT_filename.pdf
-_ckout="$(cksum "$directory/$file")"
+_ckout="$(cksum "$tmpfile")"
 _crc="${_ckout%% *}"; _rest="${_ckout#* }"
 _bytes="${_rest%% *}"
 pdffile="${_crc}_${_bytes}_${file}.pdf"
@@ -137,75 +134,34 @@ log "Cache file: $pdffile"
 
 file_converter=""
 
-# Check for cached conversion first (skip with -f)
-if [ "$ZA_FORCE" -eq 0 ] && [ -f "$ZA_CACHE_DIR/$pdffile" ]; then
-	file_converter="none_converted"
-else
-	if [ "$ZA_FORCE" -eq 1 ] && [ -f "$ZA_CACHE_DIR/$pdffile" ]; then
-		log "Force re-conversion (ignoring cache)"
-	fi
-	case "$file_mt" in
-	"application/pdf" | "image/vnd.djvu" | "application/epub+zip")
+# Determine file_converter from the file extension passed via -t
+case "$ZA_FT" in
+	pdf|epub|djvu)
 		file_converter="none_original"
 		;;
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document" | \
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" | \
-		"application/vnd.openxmlformats-officedocument.presentationml.presentation" | \
-		"application/msword" | \
-		"application/vnd.ms-excel" | \
-		"application/vnd.ms-powerpoint" | \
-		"application/vnd.oasis.opendocument.text" | \
-		"application/vnd.oasis.opendocument.spreadsheet" | \
-		"application/vnd.oasis.opendocument.presentation" | \
-		"text/rtf" | \
-		"text/csv")
+	mobi)
+		file_converter="$ZA_MOBI_CMD"
+		;;
+	md)
+		file_converter="$ZA_MD_CMD"
+		;;
+	typ|typst)
+		file_converter="$ZA_TYPST_CMD"
+		;;
+	docx|xlsx|pptx|docm|pptm|xlsm|xlsb|doc|xls|ppt|odt|ods|odp|rtf|csv)
 		file_converter="$ZA_OFFICE_CMD"
 		;;
-	"application/x-mobipocket-ebook")
-    file_converter="$ZA_MOBI_CMD"
+	*)
+		err "unsupported format: $ZA_FT"
+		exit 2
 		;;
-	"application/octet-stream")
-		case "$file" in
-		*.mobi)
-      file_converter="$ZA_MOBI_CMD"
-			;;
-		esac
-		;;
-	# file(1) reports macro-enabled Office formats as application/zip
-	"application/zip")
-		case "$file" in
-		*.xlsm | *.xlsb | *.docm | *.pptm | *.ppsx | *.dotx | *.docx | *.odt | *.ods)
-      file_converter="$ZA_OFFICE_CMD"
-			;;
-		esac
-		;;
-	# file(1) sometimes reports markdown/typst as C, ObjC, Python, or text/markdown
-	"text/plain" | \
-		"text/x-c" | \
-		"text/x-objective-c" | \
-		"text/x-script.python" | \
-		"text/markdown")
-		case "$file" in
-		*.md)
-			file_converter="$ZA_MD_CMD"
-			;;
-		*.typ)
-			file_converter="$ZA_TYPST_CMD"
-			;;
-		esac
-		;;
-	esac
-fi
+esac
 
 case "$file_converter" in
-"")
-	err "unsupported format: $file_mt"
-	exit 2
-	;;
 "none_original")
 	log "Opening directly"
 	# shellcheck disable=SC2086
-	"$ZA_READER_CMD" $ZA_READER_ARG "$directory/$file"
+	"$ZA_READER_CMD" $ZA_READER_ARG "$tmpfile"
 	;;
 "none_converted")
 	log "Opening from cache"
@@ -221,40 +177,30 @@ case "$file_converter" in
 	# _ARG vars intentionally unquoted to allow multi-argument values
 	case "$file_converter" in
 	"$ZA_OFFICE_CMD")
-		case "$file" in
-		.*.*)
-			tmpfile="${file%.*}.pdf"
-			;;
-		.*)
-			tmpfile="$file.pdf"
-			;;
-		*)
-			tmpfile="${file%.*}.pdf"
-			;;
-		esac
 		# shellcheck disable=SC2086
 		if ! "$ZA_OFFICE_CMD" $ZA_OFFICE_ARG \
 			"-env:UserInstallation=file:///tmp/zaread-soffice-$$" \
-			--convert-to pdf "$directory/$file" --outdir "$ZA_CACHE_DIR"; then
-			rm -f "$ZA_CACHE_DIR/$tmpfile"
+			--convert-to pdf "$tmpfile" --outdir "$ZA_CACHE_DIR"; then
+			rm -f "$ZA_CACHE_DIR/$pdffile.part"
 			rm -rf "/tmp/zaread-soffice-$$"
 			err "conversion failed: $ZA_OFFICE_CMD $file"
 			exit 3
 		fi
 		rm -rf "/tmp/zaread-soffice-$$"
-		mv "$ZA_CACHE_DIR/$tmpfile" "$ZA_CACHE_DIR/$pdffile"
+		filebase="${file%.*}"
+		mv "$ZA_CACHE_DIR/$filebase.pdf" "$ZA_CACHE_DIR/$pdffile"
 		;;
 	"$ZA_MOBI_CMD")
 		# shellcheck disable=SC2086
-		run_convert "$ZA_MOBI_CMD" "$ZA_MOBI_CMD" $ZA_MOBI_ARG "$directory/$file" "$ZA_CACHE_DIR/$pdffile.part"
+		run_convert "$ZA_MOBI_CMD" "$ZA_MOBI_CMD" $ZA_MOBI_ARG "$tmpfile" "$ZA_CACHE_DIR/$pdffile.part"
 		;;
 	"$ZA_MD_CMD")
 		# shellcheck disable=SC2086
-		run_convert "$ZA_MD_CMD" "$ZA_MD_CMD" $ZA_MD_ARG -i "$directory/$file" -o "$ZA_CACHE_DIR/$pdffile.part"
+		run_convert "$ZA_MD_CMD" "$ZA_MD_CMD" $ZA_MD_ARG -i "$tmpfile" -o "$ZA_CACHE_DIR/$pdffile.part"
 		;;
 	"$ZA_TYPST_CMD")
 		# shellcheck disable=SC2086
-		run_convert "$ZA_TYPST_CMD" "$ZA_TYPST_CMD" $ZA_TYPST_ARG "$directory/$file" "$ZA_CACHE_DIR/$pdffile.part"
+		run_convert "$ZA_TYPST_CMD" "$ZA_TYPST_CMD" $ZA_TYPST_ARG "$tmpfile" "$ZA_CACHE_DIR/$pdffile.part"
 		;;
 	esac
 	log "Opening converted file"

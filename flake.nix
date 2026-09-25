@@ -16,7 +16,7 @@
       inputs.nixpkgs.legacyPackages."x86_64-linux".stdenvNoCC.mkDerivation
         rec {
           pname = "zaread";
-          version = "2.0.2";
+          version = "2.0.3";
 
           src = ./.;
 

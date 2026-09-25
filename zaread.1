@@ -5,10 +5,12 @@ zaread - lightweight, read-only document reader
 .B zaread
 .RB [ -v ]
 .RB [ -f ]
+.RB [ -F ]
 .RB [ -c ]
 .RB [ -V ]
 .RB [ -h ]
-.I file
+.RB [ -t <ft> ]
+.I < /dev/stdin>
 .SH DESCRIPTION
 .B zaread
 opens PDF, EPUB, and DJVU files directly with zathura. Other supported formats are converted to PDF, cached in
@@ -18,6 +20,8 @@ opens PDF, EPUB, and DJVU files directly with zathura. Other supported formats a
 and opened from the cached PDF. If the source file changes,
 .B zaread
 detects the change and automatically re-converts it.
+Input is read from stdin and the file type must be specified with
+.B -t .
 
 .SH OPTIONS
 .TP
@@ -35,6 +39,9 @@ Overwrites
 .B ZA_FORCE
 and sets it to "1".
 .TP
+.BR -F
+Pass --fork to the reader command (e.g., zathura).
+.TP
 .BR -c
 Clear the conversion cache.
 .TP
@@ -43,7 +50,16 @@ Print the version and exit.
 .TP
 .BR -h
 Show usage information and exit.
-
+.TP
+.B -t
+Specify the file extension of the input from stdin. This is required when reading from stdin since the file type cannot be auto-detected.
+.br
+Example:
+.B -t docx
+.br
+Supported extensions:
+.B pdf, epub, djvu, mobi, md, typ, typst, docx, xlsx, pptx, doc, xls, ppt, odt, ods, odp, rtf, csv
+.TP
 .SH ENVIRONMENT
 
 .SS Reader
@@ -130,7 +146,7 @@ Default:
 Success.
 .TP
 .B 1
-Usage error, missing input file, or missing dependency.
+Usage error, missing stdin, or missing dependency.
 .TP
 .B 2
 Unsupported file format.
